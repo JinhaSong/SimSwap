@@ -97,4 +97,4 @@ class Face_detect_crop:
         # M, _ = face_align.estimate_norm(kps, crop_size, mode ='None') 
         # align_img = cv2.warpAffine(img, M, (crop_size, crop_size), borderValue=0.0)
         
-        return align_img_list, M_list
+        return align_img_list, M_list, bboxes

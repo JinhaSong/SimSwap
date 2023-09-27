@@ -65,7 +65,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         pic_a = opt.pic_a_path
         img_a_whole = cv2.imread(pic_a)
-        img_a_align_crop, _ = app.get(img_a_whole, crop_size)
+        img_a_align_crop, _, _ = app.get(img_a_whole, crop_size)
         img_a_align_crop_pil = Image.fromarray(cv2.cvtColor(img_a_align_crop[0], cv2.COLOR_BGR2RGB))
         img_a = transformer_Arcface(img_a_align_crop_pil)
         img_id = img_a.view(-1, img_a.shape[0], img_a.shape[1], img_a.shape[2])
@@ -76,19 +76,46 @@ if __name__ == '__main__':
 
         for dataset_type in dataset_types:
             image_dir = os.path.join(pic_b, "images", dataset_type)
-            output_dir = os.path.join(opt.output_path, "images", dataset_type)
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+            output_image_dir = os.path.join(opt.output_path, "images", dataset_type)
+            output_label_dir = os.path.join(opt.output_path, "labels", dataset_type)
+            if not os.path.exists(output_image_dir):
+                os.makedirs(output_image_dir)
+            if not os.path.exists(output_label_dir):
+                os.makedirs(output_label_dir)
             image_names = sorted(os.listdir(image_dir))
             progress_bar = tqdm(enumerate(image_names), total=len(image_names))
             for i, image_name in progress_bar:
                 try:
                     image_path = os.path.join(image_dir, image_name)
+                    label_path = os.path.join(output_label_dir, image_name.replace(".jpg", ".txt"))
 
                     img_b_whole = cv2.imread(image_path)
 
-                    img_b_align_crop_list, b_mat_list = app.get(img_b_whole,crop_size)
-                    # detect_results = None
+                    result = app.get(img_b_whole, crop_size)
+
+                    img_b_align_crop_list, b_mat_list, bboxes = result
+                    with open(label_path, "w") as f:
+                        for b, box in enumerate(bboxes):
+                            image_width = img_b_whole.shape[1]
+                            image_height = img_b_whole.shape[0]
+                            x1, y1, x2, y2, score = box
+
+                            x_center = (x1 + x2) / 2.0
+                            y_center = (y1 + y2) / 2.0
+                            width = x2 - x1
+                            height = y2 - y1
+
+                            x_center /= image_width
+                            y_center /= image_height
+                            width /= image_width
+                            height /= image_height
+
+                            if (b+1) == len(bboxes):
+                                f.write(f"{0} {x_center} {y_center} {width} {height}")
+                            else:
+                                f.write(f"{0} {x_center} {y_center} {width} {height}\n")
+                        f.close()
+
                     swap_result_list = []
                     b_align_crop_tenor_list = []
 
@@ -110,7 +137,7 @@ if __name__ == '__main__':
                     else:
                         net =None
 
-                    output_path = os.path.join(output_dir, image_name)
+                    output_path = os.path.join(output_image_dir, image_name)
                     reverse2wholeimage(b_align_crop_tenor_list,swap_result_list, b_mat_list, crop_size, img_b_whole, logoclass, \
                         output_path, opt.no_simswaplogo,pasring_model =net,use_mask=opt.use_mask, norm = spNorm)
                 except:
